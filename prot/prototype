@@ -1,0 +1,70 @@
+#!/bin/sh
+MKTEMP="mktemp -t aws-sign.XXXXXX"
+hash() {
+  printf "%s" "$1"                       | 
+  openssl dgst -sha256                   | 
+  awk '{print$2}'                        #
+}
+hex() {
+  od -An -vtx1 | sed 's/[ \n]//g' | tr -d '\n'
+}
+hmac() {
+  local keyfile="$1" data="$2"           #
+  printf '%s' "$data"                    | 
+  openssl dgst                           \
+    -sha256                              \
+    -mac HMAC                            \
+    -macopt hexkey:"$( hex < $keyfile )" \
+    -binary                              #
+}
+derive_string_key() {
+  local user_secret="$1" 
+  local message_date="$2"
+  local aws_region="$3"
+  local aws_service="$4"
+  step0="$($MKTEMP)"
+  step1="$($MKTEMP)"
+  step2="$($MKTEMP)"
+  step3="$($MKTEMP)"
+  printf '%s' "AWS4${user_secret}" > "$step0"
+  hmac "$step0" "${message_date}" > "$step1"
+  hmac "$step1" "${aws_region}" > "$step2"
+  hmac "$step2" "${aws_service}" > "$step3"
+  hmac "$step3" "aws4_request"
+  rm -f $step0 $step1 $step2 $step3
+}
+main() {
+  local u_key="AKIDEXAMPLE"
+  local u_secret="wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"
+  local timestamp="$(date +%Y%m%d%H%M%S | TZ=UTC+0 utconv)"
+  local aws_region="us-east-1"
+  local aws_service="iam"
+  local address="/"
+  local query_strings='Action=ListUsers&Version=2010-05-08'
+  local request_payload=""
+  message_date="20150830"
+  #message_date="$(echo $timestamp |
+  #  TZ=UTC+0 utconv -r            |
+  #  cut -c 1-8                    )"
+  meafter_date="$(echo $timestamp |
+    TZ=UTC+0 utconv -r            |
+    cut -c 9-14                   )"
+  #message_time="${message_date}T${meafter_date}Z"
+  message_time="20150830T123600Z"
+  aws_endpoint="${aws_service}.amazonaws.com"
+  headers="$(printf "content-type:application/x-www-form-urlencoded; charset=utf-8\nhost:${aws_endpoint}\nx-amz-date:${message_time}")"
+  header_list="content-type;host;x-amz-date"
+  canonical_request="$(printf "GET\n${address}\n%s\n${headers}\n\n${header_list}\n%s" "${query_strings}" "$(hash "$request_payload")")"
+  canonical_request_hash=$(hash "$canonical_request")
+  credential_scope="${message_date}/${aws_region}/${aws_service}/aws4_request"
+  string_to_sign="$(printf "AWS4-HMAC-SHA256\n${message_time}\n${credential_scope}\n${canonical_request_hash}")"
+  signing_key="$($MKTEMP)"
+  derive_string_key "${u_secret}" "${message_date}" "${aws_region}" "${aws_service}" > $signing_key
+  signature="$($MKTEMP)"
+  hmac "$signing_key" "$string_to_sign" > $signature
+  authorization_header="Authorization: AWS4-HMAC-SHA256 Credential=${u_key}/${credential_scope}, SignedHeaders=${header_list}, Signature=$( hex < $signature)"
+  echo "X-Amz-Date: ${message_time}"
+  echo "$authorization_header"
+  rm -f $signing_key $signature
+}
+main

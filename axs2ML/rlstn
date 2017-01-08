@@ -1,0 +1,5 @@
+tr -d '\r\n'                                                 |
+sed 's/.\{500\}/&\n/g'                                       |
+sed 's/^/boundary\nOutputFormat mp3\nVoiceId Mizuki\nText /' |
+sed '/Text/ s/$/\n/'                                         |
+while read line ; do ./axs2polly.1 ; done 
