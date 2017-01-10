@@ -87,9 +87,6 @@ _____________________REQUESTPAYLOAD
                    makrj.sh                                            |
                    sed 's/^,$//'                                       |
                    grep '^$'                                           )"
-request_payload_hash=$(printf "%s" "$request_payload"                  | 
-                      "$CMD_OSSL" dgst -sha256 | self 2                )
-rh_hdr="x-amz-content-sha256: $request_payload_hash"
 ########################################################################
 #メイン
 ########################################################################
@@ -104,6 +101,9 @@ apip_enc=$(printf '%s\n' "${api_params}"                               |
            sed 's/%3[Dd]/=/'                                           )
 query_strings=$(printf '%s' "${apip_enc}"                              |
                 tr '\n' '&'                                            )
+request_payload_hash=$(printf "%s" "$request_payload"                  | 
+                      "$CMD_OSSL" dgst -sha256 | self 2                )
+rh_hdr="x-amz-content-sha256: $request_payload_hash"                   #
 canonical_headers=$(cat <<______________________CANONICALHEADERS       |
                       ${content_type}
                       host:${aws_endpoint}
