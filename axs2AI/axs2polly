@@ -130,8 +130,7 @@ canonical_request=$(cat <<______________________CANONICALREQUEST       |
                       ${canonical_headers}
 
                       ${signed_headers}
-                      $(printf "%s" "$request_payload"                 | 
-                      "$CMD_OSSL" dgst -sha256 | self 2                )
+                      ${request_payload_hash}
 ______________________CANONICALREQUEST
                     sed 's/^ *//'                                      )
 canonical_request_hash=$(printf %s "$canonical_request"                |
