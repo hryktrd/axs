@@ -2,7 +2,7 @@
 #
 #          A simple 'aws' command 'axs' written in POSIX sh 
 #               axs(access) to aws(amazon web services)
-# axs to Amazon Polly Speech
+# 
 # Original author: BRAVEMAN LONGBRIDGE, 2016
 # powerd by POSIX原理主義 
 ########################################################################
