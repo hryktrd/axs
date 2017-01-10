@@ -75,9 +75,6 @@ fi                                                                     #
 api_params=$(cat <<_______________APIPARAMS                            |
 _______________APIPARAMS
              sed 's/^ *//'                                             )
-add_header=$(cat <<_______________ADDHEADER                            |
-_______________ADDHEADER
-             sed 's/^ *//'                                             )
 request_payload="$(cat <<_____________________REQUESTPAYLOAD           |
                      ${file}
 _____________________REQUESTPAYLOAD
