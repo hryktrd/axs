@@ -15,8 +15,8 @@ set -u                                                                 #
 umask 0022                                                             #
 unset IFS                                                              #
 export LC_ALL='C'                                                      #
-export PATH="/usr/local/shellshoccar/bin:$PATH"
 export PATH="$(command -p getconf PATH):$PATH"
+export PATH="/usr/local/shellshoccar/bin:$PATH"
 # === 必要なプログラムの存在を確認する =============================
 # --- 1.符号化コマンド (OpenSSL                                         #                                       
 if   command -v openssl >/dev/null; then                               #
@@ -32,11 +32,7 @@ elif command -v wget    >/dev/null; then                               #
 else                                                                   #
   error_exit 1 'No HTTP-GET/POST command found.'                       #
 fi                                                                     #
-########################################################################
-# パラメーター 適宜変更してください。ファイルor標準入力からの読み込み予定
-# オプションでサービス選択可能にするつもり
-# example: -e:ec2 -i:IAM -s:S3 -p:pollyなど
-########################################################################
+# === ユーザー情報 ===========================================
 u_key="$(cat ~/.aws/credentials                                        | 
          grep key_id                                                   | 
          awk 'NR==1{print $3}'                                         )"
@@ -53,13 +49,13 @@ meafter_date="$(echo $timestamp                                        |
                 cut -c 9-14                                            )"
 message_time="${message_date}T${meafter_date}Z"                        #
 tm_hdr="X-Amz-Date: ${message_time}"                                   #
+########################################################################
+# パラメータ
+########################################################################
 # === 基本的な情報（変更の余地少あり）=========================           #
-# GETのとき                                                             #
-content_type="Content-Type:"                                           #
-# POSTのとき                                                            #
-# content_type="Content-Type: application/x-www-form-urlencoded"       #
-# === 変更の余地あるもの、オプションによる可変予定==============           #
 method="GET"                                                           #
+content_type="Content-Type: application/x-www-form-urlencoded"         #
+# ==========================================================           #
 aws_region="ap-northeast-1"                                            #
 aws_service="s3"                                                       #
 uri="/"                                                                #
@@ -114,7 +110,6 @@ canonical_headers=$(cat <<______________________CANONICALHEADERS       |
                       host:${aws_endpoint}
                       ${tm_hdr}
                       ${rh_hdr}
-                      ${add_header}
 ______________________CANONICALHEADERS
                     sed 's/^ *//'                                      |
                     grep -v '^$'                                       |
@@ -194,6 +189,7 @@ apires=$(printf 'Credential=%s/%s, SignedHeaders=%s, Signature=%s'     \
                          -H "$oa_hdr"                                  \
                          -H "$tm_hdr"                                  \
                          -H "$rh_hdr"                                  \
+                         -d "$request_payload"                         \
                          "https://${request_url}"                      #
            fi                                                          #
          done                                                          |
