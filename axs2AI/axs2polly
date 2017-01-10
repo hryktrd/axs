@@ -87,7 +87,9 @@ _____________________REQUESTPAYLOAD
                    sed '/".*"/ s/--/ /'                                |
                    awk '{printf "$.%s %s\n",$1,$2}'                    |
                    sed '/".*"/ s/_/ /g'                                | 
-                   makrj.sh                                            )"
+                   makrj.sh                                            |
+                   sed 's/^,$//'                                       |
+                   grep '^$'                                           )"
 request_payload_hash=$(printf "%s" "$request_payload"                  | 
                       "$CMD_OSSL" dgst -sha256 | self 2                )
 rh_hdr="x-amz-content-sha256: $request_payload_hash"
