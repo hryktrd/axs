@@ -190,4 +190,6 @@ apires=$(printf 'Credential=%s/%s, SignedHeaders=%s, Signature=%s'     \
          base64                                                        )
 #process responce　　　　　　　　　　　　　　　　　　　　　　　　　　  #
 printf "%s" "$apires"                                                  |
-base64  -d                                                             #
+base64  -d                                                             |
+tr -d '\n\r'                                                           |
+parsrx.sh                                                              #
