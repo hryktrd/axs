@@ -1,0 +1,214 @@
+#!/bin/sh
+#
+#          A simple 'aws' command 'axs' written in POSIX sh 
+#               axs(access) to aws(amazon web services)
+# 
+# Original author: BRAVEMAN LONGBRIDGE, 2016
+# powerd by POSIX原理主義 
+########################################################################
+
+########################################################################
+# Initialization
+########################################################################
+# === initialize =====================================================
+set -u                                                                 #
+umask 0022                                                             #
+unset IFS                                                              #
+export LC_ALL='C'                                                      #
+export PATH="$(command -p getconf PATH):$PATH"
+# === comfirm existance of required command ==========================
+# --- 1. (OpenSSL                                                      #
+if   command -v openssl >/dev/null; then                               #
+  CMD_OSSL='openssl'                                                   #
+else                                                                   #
+  error_exit 1 'OpenSSL command is not found.'                         #
+fi                                                                     #
+# --- 2.（wget or curl                                                 #
+if   command -v curl    >/dev/null; then                               #
+  CMD_CURL='curl'                                                      #
+elif command -v wget    >/dev/null; then                               #
+  CMD_WGET='wget'                                                      #
+else                                                                   #
+  error_exit 1 'No HTTP-GET/POST command found.'                       #
+fi                                                                     #
+# === user information ===============================================
+u_key="$(cat ~/.aws/credentials                                        | 
+         grep key_id                                                   | 
+         awk 'NR==1{print $3}'                                         )"
+u_secret="$(cat ~/.aws/credentials                                     | 
+            grep secret                                                | 
+            awk 'NR==1{print $3}'                                      )"
+# === timestamp ======================================================
+timestamp="$(date '+%Y%m%d%H%M%S' | utconv)"                           #
+message_date="$(echo $timestamp                                        |
+                TZ=UTC+0 utconv -r                                     |
+                cut -c 1-8                                             )"
+meafter_date="$(echo $timestamp                                        |
+                TZ=UTC+0 utconv -r                                     |
+                cut -c 9-14                                            )"
+message_time="${message_date}T${meafter_date}Z"                        #
+tm_hdr="X-Amz-Date: ${message_time}"                                   #
+########################################################################
+# parameter
+########################################################################
+# === basic info =====================================================
+ct_hdr="Content-Type: application/x-amz-json-1.1"                      #
+# ====================================================================
+aws_region="ap-northeast-1"                                            #
+aws_service="acm"                                                      #
+uri="/"                                                                #
+aws_endpoint="$(printf "%s"                                            \
+                       "${aws_service}.${aws_region}.amazonaws.com"    | 
+                sed 's/\.\././'                                        )"
+# === config. read file or stdio =====================================
+if [ -n "${1:-}" ]; then                                               #
+  FILE=$(cat $1)                                                       #
+else                                                                   #
+  FILE=$(while read line; do                                           #
+           echo "$line"                                                #
+           [ -z "$line" ] && break                                     #
+         done)                                                         #
+fi                                                                     #
+########################################################################
+METHOD=$(cat <<___________METHOD                                       |
+          $FILE
+___________METHOD
+         head -n 1                                                     |
+         awk '{print $1}'                                              )
+URI=$(cat <<________URI                                                |
+        $FILE
+________URI
+        head -n 1                                                      |
+        awk '{print $2}'                                               )
+echo "$METHOD" "$URI";exit 0;
+api_params=$(cat <<_______________APIPARAMS                            |
+_______________APIPARAMS
+             sed 's/^ *//'                                             )
+request_payload="$(cat <<_____________________REQUESTPAYLOAD           |
+                     $(printf "%s" "$file"                             |
+                       tail -n +2                                      |
+                       makrj.sh                                        )
+_____________________REQUESTPAYLOAD
+                   sed 's/^ *//'                                       )"
+AG_HDR="$(printf "%s" "$file"                                          |
+          head -n 1                                                    |
+          tr ' ' '.'                                                   |
+          sed 's/^/X-Amz-Target: /'                                    )"
+########################################################################
+#main
+########################################################################
+canonical_uri=$(printf "%s" "$uri"                                     | 
+                urlencode -r                                           |
+                sed 's/%2[F]/\//g'                                     )
+apip_enc=$(printf '%s\n' "${api_params}"                               |
+           tr ' ' '='                                                  |
+           grep -v '^$'                                                |
+           sort                                                        |
+           urlencode -r                                                |
+           sed 's/%1[Ee]/%0A/g'                                        | 
+           sed 's/%3[Dd]/=/'                                           )
+query_strings=$(printf '%s' "${apip_enc}"                              |
+                tr '\n' '&'                                            |
+                sed 's/&$//'                                           )
+request_payload_hash=$(printf "%s" "$request_payload"                  | 
+                      "$CMD_OSSL" dgst -sha256 | self 2                )
+rh_hdr="x-amz-content-sha256: $request_payload_hash"                   #
+canonical_headers=$(cat <<______________________CANONICALHEADERS       |
+                      ${ct_hdr}
+                      host:${aws_endpoint}
+                      ${AG_HDR}
+                      ${tm_hdr}
+                      ${rh_hdr}
+______________________CANONICALHEADERS
+                    sed 's/^ *//'                                      |
+                    grep -v '^$'                                       |
+                    awk -F: -v 'OFS=:' '{print tolower($1),$2}'        |
+                    sed 's/\([^;]\) /\1/'                              |
+                    sed 's/   *//'                                     |
+                    grep -v '^$'                                       |
+                    sort                                               )
+signed_headers=$(printf "%s" "$canonical_headers"                      |
+                 cut -d: -f1                                           |
+                 sed 's/.*/&;/'                                        |
+                 tr -d '\n'                                            |
+                 sed 's/;$//'                                          )
+canonical_request=$(cat <<______________________CANONICALREQUEST       |
+                      ${method}
+                      ${canonical_uri}
+                      ${query_strings}
+                      ${canonical_headers}
+
+                      ${signed_headers}
+                      ${request_payload_hash}
+______________________CANONICALREQUEST
+                    sed 's/^ *//'                                      )
+canonical_request_hash=$(printf %s "$canonical_request"                |
+                         "$CMD_OSSL" dgst -sha256 | self 2             )
+credential_scope=$(printf '%s/%s/%s/aws4_request'                      \
+                          "${message_date}"                            \
+                          "${aws_region}"                              \
+                          "${aws_service}"                             )
+string_to_sign=$(cat <<___________________STRINGTOSIGN                 |
+                   AWS4-HMAC-SHA256
+                   ${message_time}
+                   ${credential_scope}
+                   ${canonical_request_hash}
+___________________STRINGTOSIGN
+                sed 's/^ *//'                                          )
+signstep0=$(printf "$message_date"                                     | 
+            "$CMD_OSSL" sha256                                         \
+            -hmac "AWS4${u_secret}"               -hex                 |
+            self 2                                                     )
+signstep1=$(printf "$aws_region"                                       | 
+            "$CMD_OSSL" sha256                                         \
+            -mac HMAC -macopt hexkey:"$signstep0" -hex                 | 
+            self 2                                                     )
+signstep2=$(printf "$aws_service"                                      | 
+            "$CMD_OSSL" sha256                                         \
+            -mac HMAC -macopt hexkey:"$signstep1" -hex                 | 
+            self 2                                                     )
+signstep3=$(printf "aws4_request"                                      | 
+            "$CMD_OSSL" sha256                                         \
+            -mac HMAC -macopt hexkey:"$signstep2" -hex                 | 
+            self 2                                                     )
+signature=$(printf "%s" "$string_to_sign"                              | 
+            "$CMD_OSSL" sha256                                         \
+            -mac HMAC -macopt hexkey:"$signstep3" -hex                 | 
+            self 2                                                     )
+request_url="${aws_endpoint}${uri}?${query_strings:-}"                 #
+[ -z "${query_strings}" ] && request_url=${request_url%'?'}            #
+apires=$(printf 'Credential=%s/%s, SignedHeaders=%s, Signature=%s'     \
+                "${u_key}"                                             \
+                "${credential_scope}"                                  \
+                "${signed_headers}"                                    \
+                "${signature}"                                         |
+         sed 's/^/Authorization: AWS4-HMAC-SHA256 /'                   |
+         grep ^                                                        |
+         while read -r oa_hdr; do                                      #
+           if   [ -n "${CMD_WGET:-}" ]; then                           #
+             "$CMD_WGET" -q -O - --method="$method"                    \
+                         --header="$ct_hdr"                            \
+                         --header="$oa_hdr"                            \
+                         --header="$tm_hdr"                            \
+                         --header="$rh_hdr"                            \
+                         --header="$AG_HDR"                            \
+                         --body-data="$request_payload"                \
+                         "https://${request_url}"                    | #
+             cat                                                       #
+           elif [ -n "${CMD_CURL:-}" ]; then                           #
+             "$CMD_CURL" -s -X "$method"                               \
+                         -H "$ct_hdr"                                  \
+                         -H "$oa_hdr"                                  \
+                         -H "$tm_hdr"                                  \
+                         -H "$rh_hdr"                                  \
+                         -H "$AG_HDR"                                  \
+                         -d "$request_payload"                         \
+                         "https://${request_url}"                      #
+           fi                                                          #
+         done                                                          |
+         base64                                                        )
+#process responce　　　　　　　　　　　　　　　　　　　　　　　　　　  #
+printf "%s" "$apires"                                                  |
+base64  -d                                                             |
+tr -d '\n\r'                                                           |
+parsrj.sh                                                              #
