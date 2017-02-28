@@ -8,23 +8,22 @@
 ########################################################################
 
 ########################################################################
-# 初期設定
+# Initialization
 ########################################################################
-# === 初期化 =========================================================
+# === initialize =====================================================
 set -u                                                                 #
 umask 0022                                                             #
 unset IFS                                                              #
 export LC_ALL='C'                                                      #
 export PATH="$(command -p getconf PATH):$PATH"
-export PATH="/usr/local/shellshoccar/bin:$PATH"
-# === 必要なプログラムの存在を確認する =============================
-# --- 1.符号化コマンド (OpenSSL                                         #                                       
+# === comfirm existance of required command ==========================
+# --- 1. (OpenSSL                                                      #
 if   command -v openssl >/dev/null; then                               #
   CMD_OSSL='openssl'                                                   #
 else                                                                   #
   error_exit 1 'OpenSSL command is not found.'                         #
 fi                                                                     #
-# --- 2.HTTPアクセスコマンド（wgetまたはcurl                             #
+# --- 2.（wget or curl                                                 #
 if   command -v curl    >/dev/null; then                               #
   CMD_CURL='curl'                                                      #
 elif command -v wget    >/dev/null; then                               #
@@ -32,14 +31,14 @@ elif command -v wget    >/dev/null; then                               #
 else                                                                   #
   error_exit 1 'No HTTP-GET/POST command found.'                       #
 fi                                                                     #
-# === ユーザー情報 ===========================================
+# === user information ===============================================
 u_key="$(cat ~/.aws/credentials                                        | 
          grep key_id                                                   | 
          awk 'NR==1{print $3}'                                         )"
 u_secret="$(cat ~/.aws/credentials                                     | 
             grep secret                                                | 
             awk 'NR==1{print $3}'                                      )"
-# === timestamp ============================================           #
+# === timestamp ======================================================
 timestamp="$(date '+%Y%m%d%H%M%S' | utconv)"                           #
 message_date="$(echo $timestamp                                        |
                 TZ=UTC+0 utconv -r                                     |
@@ -50,64 +49,74 @@ meafter_date="$(echo $timestamp                                        |
 message_time="${message_date}T${meafter_date}Z"                        #
 tm_hdr="X-Amz-Date: ${message_time}"                                   #
 ########################################################################
-# パラメータ
+# parameter
 ########################################################################
-# === 基本的な情報（変更の余地少あり）=========================           #
-method="GET"                                                           #
-content_type="Content-Type: application/x-www-form-urlencoded"         #
-# ==========================================================           #
+# === basic info =====================================================
+ct_hdr="Content-Type: application/x-amz-json-1.1"                      #
+# ====================================================================
 aws_region="ap-northeast-1"                                            #
-aws_service="s3"                                                       #
+aws_service="acm"                                                      #
 uri="/"                                                                #
 aws_endpoint="$(printf "%s"                                            \
-                       "${aws_service}-${aws_region}.amazonaws.com"    | 
+                       "${aws_service}.${aws_region}.amazonaws.com"    | 
                 sed 's/\.\././'                                        )"
-# === 設定をファイルか標準入力から読み込む =============================
-#if [ -n "${1:-}" ]; then                                               #
-#  file=$(cat $1)                                                       #
-#else                                                                   #
-#  file=$(while read line; do                                           #
-#           echo "$line"                                                #
-#           [ -z "$line" ] && break
-#         done)                                                         #
-#fi                                                                     #
-file=
+# === config. read file or stdio =====================================
+if [ -n "${1:-}" ]; then                                               #
+  FILE=$(cat $1)                                                       #
+else                                                                   #
+  FILE=$(while read line; do                                           #
+           echo "$line"                                                #
+           [ -z "$line" ] && break                                     #
+         done)                                                         #
+fi                                                                     #
 ########################################################################
+METHOD=$(cat <<___________METHOD                                       |
+          $FILE
+___________METHOD
+         head -n 1                                                     |
+         awk '{print $1}'                                              )
+URI=$(cat <<________URI                                                |
+        $FILE
+________URI
+        head -n 1                                                      |
+        awk '{print $2}'                                               )
+echo "$METHOD" "$URI";exit 0;
 api_params=$(cat <<_______________APIPARAMS                            |
 _______________APIPARAMS
              sed 's/^ *//'                                             )
 request_payload="$(cat <<_____________________REQUESTPAYLOAD           |
-                     ${file}
+                     $(printf "%s" "$file"                             |
+                       tail -n +2                                      |
+                       makrj.sh                                        )
 _____________________REQUESTPAYLOAD
-                   sed 's/^ *//'                                       |
-                   sed '/".*"/ s/ /--/'                                |
-                   sed '/".*"/ s/ /_/g'                                |
-                   sed '/".*"/ s/--/ /'                                |
-                   awk '{printf "$.%s %s\n",$1,$2}'                    |
-                   sed '/".*"/ s/_/ /g'                                | 
-                   makrj.sh                                            |
-                   sed 's/^,$//'                                       |
-                   grep '^$'                                           )"
+                   sed 's/^ *//'                                       )"
+AG_HDR="$(printf "%s" "$file"                                          |
+          head -n 1                                                    |
+          tr ' ' '.'                                                   |
+          sed 's/^/X-Amz-Target: /'                                    )"
 ########################################################################
-#メイン
+#main
 ########################################################################
 canonical_uri=$(printf "%s" "$uri"                                     | 
                 urlencode -r                                           |
                 sed 's/%2[F]/\//g'                                     )
 apip_enc=$(printf '%s\n' "${api_params}"                               |
+           tr ' ' '='                                                  |
            grep -v '^$'                                                |
            sort                                                        |
            urlencode -r                                                |
            sed 's/%1[Ee]/%0A/g'                                        | 
            sed 's/%3[Dd]/=/'                                           )
 query_strings=$(printf '%s' "${apip_enc}"                              |
-                tr '\n' '&'                                            )
+                tr '\n' '&'                                            |
+                sed 's/&$//'                                           )
 request_payload_hash=$(printf "%s" "$request_payload"                  | 
                       "$CMD_OSSL" dgst -sha256 | self 2                )
 rh_hdr="x-amz-content-sha256: $request_payload_hash"                   #
 canonical_headers=$(cat <<______________________CANONICALHEADERS       |
-                      ${content_type}
+                      ${ct_hdr}
                       host:${aws_endpoint}
+                      ${AG_HDR}
                       ${tm_hdr}
                       ${rh_hdr}
 ______________________CANONICALHEADERS
@@ -178,22 +187,28 @@ apires=$(printf 'Credential=%s/%s, SignedHeaders=%s, Signature=%s'     \
          while read -r oa_hdr; do                                      #
            if   [ -n "${CMD_WGET:-}" ]; then                           #
              "$CMD_WGET" -q -O - --method="$method"                    \
+                         --header="$ct_hdr"                            \
                          --header="$oa_hdr"                            \
                          --header="$tm_hdr"                            \
                          --header="$rh_hdr"                            \
+                         --header="$AG_HDR"                            \
                          --body-data="$request_payload"                \
                          "https://${request_url}"                    | #
              cat                                                       #
            elif [ -n "${CMD_CURL:-}" ]; then                           #
              "$CMD_CURL" -s -X "$method"                               \
+                         -H "$ct_hdr"                                  \
                          -H "$oa_hdr"                                  \
                          -H "$tm_hdr"                                  \
                          -H "$rh_hdr"                                  \
+                         -H "$AG_HDR"                                  \
                          -d "$request_payload"                         \
                          "https://${request_url}"                      #
            fi                                                          #
          done                                                          |
-         base64 --by-myself                                            )
-#responce処理　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　  #
+         base64                                                        )
+#process responce　　　　　　　　　　　　　　　　　　　　　　　　　　  #
 printf "%s" "$apires"                                                  |
-base64 --by-myself -d                                                  #
+base64  -d                                                             |
+tr -d '\n\r'                                                           |
+parsrj.sh                                                              #
