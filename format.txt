@@ -1,11 +1,11 @@
-R METHOD URI
-Q Key Value
-Q Key Value
-Q Key Value
-H Content-Type: application/json
-H x-amz-test1: hogehoge
-H x-amz-test2: hogehoge
-H x-amz-test3: hogehoge
+GET /
+Key Value
+Key Value
+Key Value
+Content-Type: application/json
+x-amz-test1: hogehoge
+x-amz-test2: hogehoge
+x-amz-test3: hogehoge
 
 json or xml payload
 if you have a file to upload, 
