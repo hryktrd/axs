@@ -31,8 +31,10 @@ fi
 # --- 2. ( wget or curl
 if   command -v curl    >/dev/null; then
   CMD_CURL='curl'
+  CRHEADER='--include'
 elif command -v wget    >/dev/null; then
   CMD_WGET='wget'
+  CRHEADER='--server-response'
 else
   error_exit 1 'No HTTP-GET/POST commamd found.'
 fi
@@ -94,6 +96,7 @@ do
         ENDPOINT="${SERVICE}.amazonaws.com"
         ;;
     s)  SERVICE=s3
+        CRHEADERS="$CRHEADER"
         BUCKET="${OPTARG#/}."
         ENDPOINT="${BUCKET#.}${SERVICE}-${AWS_REGION}.amazonaws.com"
         ;;
@@ -180,12 +183,12 @@ QUERY_STRINGS=$(cat <<-QUERYSTRINGS                        |
 	    $QUERYANDHEADERS
 	QUERYSTRINGS
           sed 's/^ *//'                                    |
-	  head -n 1                                        )
+	  sed -n '/: /!p'                                  )
 HEADERS=$(cat <<-HEADERS                                   |
 	    $QUERYANDHEADERS
 	HEADERS
           sed 's/^ *//'                                    |
-          tail -n +2                                       )
+          sed -n '/: /p'                                   )
 #                                                          #
 # === Content-Length and Payload hash Header ===============
 TMP_FILE=$(mktemp)
@@ -314,7 +317,7 @@ while read -r OA_HDR; do                                   #
                              | tr -d '\n'                  )
     REQUEST=$(cat <<-REQUEST                               |
 	    "$CMD_WGET" -q -O - --method="$METHOD"
-	                --server-response
+	                ${CRHEADERS:-}
 	                --header="$OA_HDR"
 	                          $HEADERS
 	                --body-file="$TMP_FILE"
@@ -330,7 +333,7 @@ while read -r OA_HDR; do                                   #
                              | tr -d '\n'                  )
     REQUEST=$(cat <<-REQUEST                               |
 	    "$CMD_CURL" -s -X "$METHOD"
-	                --include
+	                ${CRHEADERS:-}
 	                -H "$OA_HDR"
 	                    $HEADERS
 	                --data-binary @$TMP_FILE
