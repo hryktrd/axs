@@ -85,14 +85,17 @@ SERVICE=''
 ENDPOINT=''
 ACTION=''
 UPFILE=''
+FLAG=0
 # --- 2. get opts
-while getopts es:lcrit:f: OPT
+while getopts es:lcrif:q OPT
 do
   case $OPT in
     e)  SERVICE=ec2
+        CRHEADERS="$CRHEADER"
         ENDPOINT="${SERVICE}.${AWS_REGION}.amazonaws.com"
         ;;
     i)  SERVICE=iam
+        CRHEADERS="$CRHEADER"
         ENDPOINT="${SERVICE}.amazonaws.com"
         ;;
     s)  SERVICE=s3
@@ -101,22 +104,33 @@ do
         ENDPOINT="${BUCKET#.}${SERVICE}-${AWS_REGION}.amazonaws.com"
         ;;
     l)  SERVICE=elb
+        CRHEADERS="$CRHEADER"
         ENDPOINT="${SERVICE}.${AWS_REGION}.amazonaws.com"
         ;;
     c)  SERVICE=acm
+        CRHEADERS="$CRHEADER"
         ENDPOINT="${SERVICE}.${AWS_REGION}.amazonaws.com"
         ;;
     r)  SERVICE=route53
+        CRHEADERS="$CRHEADER"
         ENDPOINT="${SERVICE}.${AWS_REGION}.amazonaws.com"
         ;;
     f)  UPFILE="$OPTARG"
         ;;
+    q)  FLAG=1
+        ;;
   esac
 done
 shift $((OPTIND - 1))
+# --- 3. Delete Response HEADER with "q" option
+case "$FLAG" in
+  0) :
+     ;;
+  1) CRHEADERS=''
+     ;;
+esac
 
 # === Get the File Path ====================================
-
 FILE='-'
 case "$#" in
   0) :
@@ -275,23 +289,23 @@ STRING_TO_SIGN=$(cat <<-STRINGTOSIGN                       |
 SIGNSTEP0=$(#--- 1. step 0 --------------------------------#
 printf "$MESSAGEDATE_A" | "$CMD_OSSL" sha256 -hmac         \
                           "AWS4${AWS_SECRET_KEY}"     -hex \
-                        | self 2                           )
+                        | awk '{print $2}'                 )
 SIGNSTEP1=$(#--- 2. step 1 --------------------------------#
 printf "$AWS_REGION"    | "$CMD_OSSL" sha256 -mac HMAC     \
                           -macopt hexkey:"$SIGNSTEP0" -hex \
-                        | self 2                           )
+                        | awk '{print $2}'                 )
 SIGNSTEP2=$(#--- 3. step 2 --------------------------------#
 printf "$SERVICE"       | "$CMD_OSSL" sha256 -mac HMAC     \
                           -macopt hexkey:"$SIGNSTEP1" -hex \
-                        | self 2                           )
+                        | awk '{print $2}'                 )
 SIGNSTEP3=$(#--- 4. step 3 --------------------------------#
 printf "aws4_request"   | "$CMD_OSSL" sha256 -mac HMAC     \
                           -macopt hexkey:"$SIGNSTEP2" -hex \
-                        | self 2                           )
+                        | awk '{print $2}'                 )
 SIGNATURE=$(#--- 5. step 4 --------------------------------#
 printf "$STRING_TO_SIGN"| "$CMD_OSSL" sha256 -mac HMAC     \
                           -macopt hexkey:"$SIGNSTEP3" -hex \
-                        | self 2                           )
+                        | awk '{print $2}'                 )
 #                                                          #
 # === Request URL ==========================================
 REQUEST_URL="${ENDPOINT}${URI}?${QUERY_STRINGS:-}"
