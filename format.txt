@@ -2,6 +2,7 @@ GET /
 Key Value
 Key Value
 Key Value
+Host: ec2.ap-northeast-1.amazonaws.com
 Content-Type: application/json
 x-amz-test1: hogehoge
 x-amz-test2: hogehoge
