@@ -21,6 +21,20 @@ export LC_ALL='C'
 export PATH="$(command -p getconf PATH)${PATH:+:}:${PATH:-}"
 export PATH="/usr/local/opt/openssl/bin:$PATH"
 
+# === Define the functions =================================
+error_exit() {
+  ${2+:} false && echo "${0##*/}: $2" 1>&2
+  exit $1
+}
+print_usage_and_exit() {
+  cat <<-USAGE 1>&2
+	Usage   : ${0##*/} [options] [config_textfile]
+	Version : 2017-04-10 22:58:30 JST
+	          (POSIX Bourne Shell/POSIX commands)
+	USAGE
+  exit 1
+}
+
 # === Comfirm Existance of Required Command ================
 # --- 1. (OpenSSL
 if   command -v openssl >/dev/null; then
@@ -31,23 +45,13 @@ fi
 # --- 2. ( wget or curl
 if   command -v curl    >/dev/null; then
   CMD_CURL='curl'
-  CRHEADER='--include'
+  CRHEADERS='--include'
 elif command -v wget    >/dev/null; then
   CMD_WGET='wget'
-  CRHEADER='--server-response'
+  CRHEADERS='--server-response'
 else
   error_exit 1 'No HTTP-GET/POST commamd found.'
 fi
-
-# === Usage printing function ==============================
-print_usage_and_exit() {
-  cat <<-USAGE 1>&2
-	Usage   : ${0##*/} [options] [config_textfile]
-	Version : 2017-02-25 00:20:55 JST
-	          (POSIX Bourne Shell/POSIX commands)
-	USAGE
-  exit 1
-}
 
 
 ############################################################
@@ -64,11 +68,6 @@ AWS_SECRET_KEY="$(cat ~/.aws/credentials                   |
                   grep secret                              |
                   awk 'NR==1{print $3}'                    )"
 
-# === AWS Default Region from Config File ==================
-AWS_REGION="$(cat ~/.aws/config                            |
-              grep region                                  |
-              awk '{print $3}'                             )"
-
 
 ############################################################
 # Parse Arguments
@@ -83,52 +82,18 @@ esac
 # --- 1. Initialize
 SERVICE=''
 ENDPOINT=''
-ACTION=''
 UPFILE=''
-FLAG=0
 # --- 2. get opts
-while getopts es:lcrif:q OPT
+while getopts f:q OPT
 do
   case $OPT in
-    e)  SERVICE=ec2
-        CRHEADERS="$CRHEADER"
-        ENDPOINT="${SERVICE}.${AWS_REGION}.amazonaws.com"
-        ;;
-    i)  SERVICE=iam
-        CRHEADERS="$CRHEADER"
-        ENDPOINT="${SERVICE}.amazonaws.com"
-        ;;
-    s)  SERVICE=s3
-        CRHEADERS="$CRHEADER"
-        BUCKET="${OPTARG#/}."
-        ENDPOINT="${BUCKET#.}${SERVICE}-${AWS_REGION}.amazonaws.com"
-        ;;
-    l)  SERVICE=elb
-        CRHEADERS="$CRHEADER"
-        ENDPOINT="${SERVICE}.${AWS_REGION}.amazonaws.com"
-        ;;
-    c)  SERVICE=acm
-        CRHEADERS="$CRHEADER"
-        ENDPOINT="${SERVICE}.${AWS_REGION}.amazonaws.com"
-        ;;
-    r)  SERVICE=route53
-        CRHEADERS="$CRHEADER"
-        ENDPOINT="${SERVICE}.${AWS_REGION}.amazonaws.com"
-        ;;
     f)  UPFILE="$OPTARG"
         ;;
-    q)  FLAG=1
+    q)  CRHEADERS=''
         ;;
   esac
 done
 shift $((OPTIND - 1))
-# --- 3. Delete Response HEADER with "q" option
-case "$FLAG" in
-  0) :
-     ;;
-  1) CRHEADERS=''
-     ;;
-esac
 
 # === Get the File Path ====================================
 FILE='-'
@@ -203,6 +168,27 @@ HEADERS=$(cat <<-HEADERS                                   |
 	HEADERS
           sed 's/^ *//'                                    |
           sed -n '/: /p'                                   )
+ENDPOINT=$(cat <<-ENDPOINT                                 |
+	    $HEADERS
+	ENDPOINT
+	  sed 's/^ *//'                                    |
+          grep '^Host: .*amazonaws\.com$'                  |
+	  sed 's/^Host: //'                                )
+SERVICE=$(cat <<-SERVICE                                   |
+	    $ENDPOINT
+	SERVICE
+          sed 's/^ *//'                                    |
+	  sed 's/\.amazonaws\.com//'                       |
+	  sed 's/\(.*\)[-\.][^.]*-[^.]*-[^.]*$/\1/'        |
+	  sed 's/.*\.//'                                   )
+AWS_REGION=$(cat <<-AREGION                                |
+	    $ENDPOINT
+	AREGION
+	  sed 's/^ *//'                                    |
+	  sed 's/\.amazonaws\.com//'                       |
+	  sed 's/.*[.-]\([^.]*-[^.]*-[^.]*\)/\1/'          |
+          sed 's/^.*\..*$/us-east-1/'                      |
+	  sed '/[^.]*-[^.]*-[^.]*/! s/^.*$/us-east-1/'     )
 #                                                          #
 # === Content-Length and Payload hash Header ===============
 TMP_FILE=$(mktemp)
@@ -233,7 +219,6 @@ HEADERS=$(cat <<-HEADERS                                   |
 #                                                          #
 # === Canonical Headers ====================================
 CANONICAL_HEADERS=$(cat <<-CANONICALHEADERS                |
-	    Host:${ENDPOINT:-}
 	    ${HEADERS:-}
 	CANONICALHEADERS
           sed 's/^ *//'                                    |
