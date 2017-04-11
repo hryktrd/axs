@@ -1,4 +1,4 @@
-# axs　- UNIX哲学を守ったつもりのSimpleなawsコマンド
+# axs　- UNIX哲学を守ったつもりのsimpleなawsコマンド
 A simple 'aws' command 'axs' written in POSIX sh. axs(access) to aws(amazon web services) with posixism
 
 このコマンドは、AmazonWebServicesにアクセスし、数々のwebサービスを利用したり、アプリを構築したりするために作られた、
@@ -149,3 +149,5 @@ Verion 2016-11-15
 cat config.txt | mojihame -lQUERY template - | axs -q | parsrx.sh | 加工
 ```
 
+
+素晴らしいparsrsのコマンドを用いれば、無駄に多くのコマンドを用いずにレスポンスの解析もできます
