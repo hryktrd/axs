@@ -1,4 +1,4 @@
-# axs
+# axs　- UNIX哲学を守ったつもりのSimpleなawsコマンド
 A simple 'aws' command 'axs' written in POSIX sh. axs(access) to aws(amazon web services) with posixism
 
 このコマンドは、AmazonWebServicesにアクセスし、数々のwebサービスを利用したり、アプリを構築したりするために作られた、
@@ -120,7 +120,7 @@ cat config_file | axs -q | parsrj.sh(POSIX原理主義製jsonパーサー)
 
 - Content-Lengthヘッダ,x-amz-content-shaナンチャラヘッダ,Autorizationヘッダは自動生成されるので、考慮する必要はありません。
 
-- 私も仲間に加えてもらった秘密結社シェルショッカー日本支部のPOSIX原理主義製の他コマンドと相性がです。
+- 私も仲間に加えてもらった秘密結社シェルショッカー日本支部のPOSIX原理主義製の他コマンドと相性がいいです。
 これを機に秘密結社シェルショッカー日本支部よりダウンロードしてくることをお勧めします。
 中でもmojihameコマンドとの相性は抜群です。https://github.com/ShellShoccar-jpn/installer
 
