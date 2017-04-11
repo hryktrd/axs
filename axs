@@ -21,6 +21,10 @@ export LC_ALL='C'
 export PATH="$(command -p getconf PATH)${PATH:+:}:${PATH:-}"
 export PATH="/usr/local/opt/openssl/bin:$PATH"
 
+# === prepare ==============================================
+LF=$(printf '\\\012_')
+LF=${LF%_}
+
 # === Define the functions =================================
 error_exit() {
   ${2+:} false && echo "${0##*/}: $2" 1>&2
@@ -156,7 +160,7 @@ QUERYANDHEADERS=$(#--- Query Strings & Head ---------------#
   sed 's/%1[Ee]/%0A/g'                                     |
   sed 's/%3[Dd]/=/g'                                       |
   tr '\n' '&'                                              |
-  sed 's/&$//'                                             #
+  sed 's/&$/'"$LF"'/'                                      #
   cat -;                                                 } ) 
 QUERY_STRINGS=$(cat <<-QUERYSTRINGS                        |
 	    $QUERYANDHEADERS
