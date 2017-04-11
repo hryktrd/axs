@@ -1,6 +1,5 @@
 # axs　- UNIX哲学を守ったつもりのsimpleなawsコマンド
-A simple 'aws' command 'axs' written in POSIX sh. axs(access) to aws(amazon web services) with posixism
-
+A simple 'aws' command 'axs' written in POSIX sh. axs(access) to aws(amazon web services) with posixism.
 このコマンドは、AmazonWebServicesにアクセスし、数々のwebサービスを利用したり、アプリを構築したりするために作られた、
 POSIX原理主義に基づく、なんちゃってawsコマンドです。
 
