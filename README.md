@@ -114,6 +114,7 @@ cat config_file | axs -q | parsrj.sh(POSIX原理主義製jsonパーサー)
 - curl
 - wget
 
+
 ## TIPS
 - 設定ファイルの書き方は、AWS API referenceなどを参照してください。設定ファイルの記述はクエリ部分以外はHTTPと同じです。
 深く悩まずに記述できることでしょう。
