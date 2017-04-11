@@ -142,7 +142,6 @@ Content-Type: application/x-www-form-urlencoded
 Action Hogehoge
 AAAAA dededed
 hogemoge ahahaha
-Verion 2016-11-15
 ```
 
 いざアクセス
@@ -152,6 +151,21 @@ cat config.txt | mojihame -lQUERY template - | axs -q | parsrx.sh | 加工
 
 
 素晴らしいparsrsのコマンドを用いれば、無駄に多くのコマンドを用いずにレスポンスの解析もできます
+
+ちなみに
+```
+cat config.txt | mojihame -lQUERY template -
+```
+までの結果だけ抜き出すと以下のようになっています。
+```
+GET /
+Action Hogehoge
+AAAAA dededed
+hogemoge ahahaha
+Version 2016-11-15
+Host: ec2.ap-northeast-1.amazonaws.com
+Content-Type: application/x-www-form-urlencoded
+```
 
 ## 感想
 意味がるのか知りません。あるかもしれないし、ないかもしれません。ただ楽しかったですとだけ付け加えておきます。
