@@ -1,0 +1,14 @@
+GET /
+Key Value
+Key Value
+Key Value
+Host: ec2.ap-northeast-1.amazonaws.com
+Content-Type: application/json
+x-amz-test1: hogehoge
+x-amz-test2: hogehoge
+x-amz-test3: hogehoge
+
+json or xml payload
+if you have a file to upload, 
+you shoud use '-f' option
+ 
