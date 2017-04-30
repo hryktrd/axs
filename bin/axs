@@ -3,7 +3,7 @@
 #   A simple 'aws' command 'axs' written in POSIX sh
 #        axs(access) to aws(amazon web services)
 #
-# Original Author: BRAVEMAN LONGBRIDGE, 2016
+# Original Author: BRAVEMAN LONGBRIDGE, 2017
 # powered by POSIX原理主義
 ############################################################
 
