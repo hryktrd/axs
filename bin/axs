@@ -63,14 +63,28 @@ fi
 ############################################################
 
 # === AWS Access Key ID from Credential File ===============
-AWS_ACCESS_KEYID="$(cat ~/.aws/credentials                 |
+AWS_ACCESS_KEYID="$(cat ~/.aws/credentials 2>/dev/null     |
                     grep key_id                            |
                     awk 'NR==1{print $3}'                  )"
+if [ -n "${AWS_ACCESS_KEY_ID:-}" ]; then
+  AWS_ACCESS_KEYID="$AWS_ACCESS_KEY_ID"
+fi
 
 # === AWS Secret AccessKey from Credential File ============
-AWS_SECRET_KEY="$(cat ~/.aws/credentials                   |
+AWS_SECRET_KEY="$(cat ~/.aws/credentials   2>/dev/null     |
                   grep secret                              |
                   awk 'NR==1{print $3}'                    )"
+if [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+  AWS_SECRET_KEY="$AWS_SECRET_ACCESS_KEY"
+fi
+
+# === Set SESSION TOKEN for IAM Role =======================
+if [ -n "${AWS_SESSION_TOKEN:-}" ]; then
+  ST_HDR=$(cat<<-SESSIONTOKEN                              |
+	    X-Amz-Security-Token: ${AWS_SESSION_TOKEN:-}
+	SESSIONTOKEN
+	  sed 's/^ *//'                                    )
+fi
 
 
 ############################################################
@@ -210,6 +224,7 @@ CL_HDR=$(ls -l   $TMP_FILE                                 \
 # === Update Headers List ==================================
 HEADERS=$(cat <<-HEADERS                                   |
 	    ${HEADERS:-}
+	    ${ST_HDR:-}
 	    ${TM_HDR:-}
 	    ${PH_HDR:-}
 	    ${CL_HDR:-}
