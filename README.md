@@ -1,119 +1,24 @@
-# axs　- UNIX哲学を守ったつもりのsimpleなawsコマンド
+# axs: Access to AWS without API tools (POSIX sh)
 A simple 'aws' command 'axs' written in POSIX sh. axs(access) to aws(amazon web services) with posixism.
-このコマンドは、AmazonWebServicesにアクセスし、数々のwebサービスを利用したり、アプリを構築したりするために作られた、
-POSIX原理主義に基づく、なんちゃってawsコマンドです。
 
-## AWS APIツールは「いつでも、どこでも、すぐ」使えるわけではない。
-作った経緯1です。バージョン依存や環境依存の大きい、AWS APIツールはいつでもどこでもすぐに使えるわけではありません。
-また、SDKやCLIもそれらをインストールできない環境だと、役に立ちません。意外なこと使えない環境を目にする機会も多いです。
-
-しかしながら、環境やバージョンアップに悩まされずにAWSのサービスを利用したい、というニーズも時にはあるのではないでしょうか？
-浅くネットサーフィンした限りでは、そのように認識しています。
-
-これは、そのニーズに応えるために作りました。
-
-POSIX shに準拠しているつもりなので、Windows, Mac, Linuxなどで、それこそコピーしてくるだけで「いつでも、どこでも、すぐ」動きます。
-
-## 大量のオプション、引数からの解放
-作った経緯２です。awsコマンドの大量の引数やオプション、サービスごとに異なる数々のサブコマンドにヘキヘキした覚えはありませんか？私はあります。
-あれはUNIX哲学を守っていません。コマンドとクラウドへ渡すパラメーターがぐちゃぐちゃに混ざったシェルスクリプトを書くのはもうこりごりです。
-
-このコマンドでは、その煩わしさから解放されます（嘘、かもしれません）UNIX哲学を守ったつもりです。また、
-RESTfulの概念も大事にしているので直感的な操作が可能かもしれないです。
-
-## 使い方
-ダウンロードしたら、このリポジトリのaxs/binにPATHを通してください。
-
-### 0. 準備
-~/.aws/credentialsファイルに以下のようにアクセスキーIDとシークレットアクセスキーを記述してください。パーミッションには気を付けてください。
+# SYNOPSIS
 ```
-[default]
-aws_access_key_id = hogehoge
-aws_secret_access_key = mogemoge
+axs [option]... [FILE]
 ```
+# DESCROPTION
+## The feature of this command is
+Without AWS API tools:  
+There is no need to worry about version of AWS SDK,CLI anymore. Sig 4 is generated only by shellscript.
 
-### 1. 基本
-使い方は簡単です。設定ファイル（書き方は後述）を読み込むだけです。
+POSIX sh compliant:  
+Write Onece, Run Anywhere, Run for Good. (Unix, Linux & Win)
 
-例えば、catコマンドを使って
-```
-$cat config_file | axs
-```
-または、引数に設定ファイルを置くだけです
-```
-$axs config_file
-```
-
-### 2. 設定ファイルのデータ形式について
-AWSはREST APIを用いています。そこで、今回は、正しいのかどうかは横に置いておいて、HTTPにちなんだデータ形式の設定ファイルを記述します。
-
-以下のような形式をとることにしました。
-```
-METHOD URI    (リクエストライン)
-Key Value
-key Value
-Key Value     (キーバリュー形式に分解したクエリ)
-Host: ec2.ap-northeast-1.amazonaws.com (必須ヘッダー)
-Content-Type: application/hoghoge (場合によっては必須のヘッダー)
-X-Amz-moge: hogehogehoge (追加のヘッダー)
-
-body 部(コンテンツの中身)
-xmlとかjsonとかバイナリデータ
-```
-基本的に、Host,Content-Typeヘッダのみが必須だと考えてもらっていいです。
-
-
-AWS APIを利用するので、body部には基本的にxmlやjsonを記述します。ただし、S3, Polly, Rekognitionなどを利用する時にはバイナリデータを
-アップロードしなければならない時があります。また、xml,jsonが長く煩雑な時は、リクエストライン、クエリ、ヘッダ部とbody部を分離したいと思う時もあるでしょう。
-
-そのような時に、axsコマンドの-fオプションを使います。
-### 3. -fオプション
-body部を分離して別ファイル（body.txtなど）にしてaxsコマンドを使う場合には以下のようにします。
-```
-$cat<<END | axs -f moon.jpg
-PUT /image.jpg
-Host: Bucket.s3.amazonaws.com (東京リージョンの場合はbucket.s3-ap-northeast-1.amazonaws.com)
-Content-Type: image/jpeg
-END
-```
-*この例では、ローカルのmoon.jpgという画像ファイルをs3のBucketバケットにimage.jpgという名前で保存しています。
-### 4. -qオプション
-これはAPIアクセス後に返ってくる、レスポンスのレスポンスヘッダーを表示するかしないかを決定するオプションです。
-デフォルトではレスポンスヘッダを表示します。AWSのREST APIがヘッダ情報をよく扱うので、汎用性を高めるためにそうのようにしてあります。
-
-例えば、以下のような違いになります。
-```
-$cat <<END | axs 
-GET /
-Action DescribeVpcs
-Version 2016-11-15
-Host: ec2.ap-norteast-1.amazonaws.com
-Content-Type: application/x-www-form-urlencoded
-END
-
-HTTP 200  OK
-hogehogehoe
-hogehogehoge
-hogehogレスポンスヘッダー
-
-<xml ......>
-```
--qオプションを利用した、レスポンスヘッダなしの場合はxmlやjsonやバイナリが直に帰ってきますので、パイプでつないで加工したりするのに便利です。
-```
-（pollyに喋ってもらう）
-cat config_file | axs -q > polly.mp3
-
-（xmlが返ってくる）
-cat config_file | axs -q | parsrx.sh(POSIX原理主義製xmlパーサー)
-
-（jsonが返ってくる）
-cat config_file | axs -q | parsrj.sh(POSIX原理主義製jsonパーサー)
-```
+True REST API:  
+Just Write RESTful HTTP request in ASCII text format to access AWS. It is very intuitive. 
+Free from too many options and subcommands.
 
 ## Requisites
-- openssl ver1.0.0以上
-- utconv (同梱、秘密結社シェルショッカー日本支部)
-- urlencode (同梱、秘密結社シェルショッカー日本支部)
+- openssl ver1.0.0
 - cat
 - awk
 - sed
@@ -123,58 +28,92 @@ cat config_file | axs -q | parsrj.sh(POSIX原理主義製jsonパーサー)
 - curl
 - wget
 
-
-## TIPS
-- 設定ファイルの書き方は、AWS API referenceなどを参照してください。設定ファイルの記述はクエリ部分以外はHTTPと同じです。
-深く悩まずに記述できることでしょう。
-
-- Content-Lengthヘッダ,x-amz-content-shaナンチャラヘッダ,Autorizationヘッダは自動生成されるので、考慮する必要はありません。
-
-- 私も仲間に加えてもらった秘密結社シェルショッカー日本支部のPOSIX原理主義製の他コマンドと相性がいいです。
-これを機に秘密結社シェルショッカー日本支部よりダウンロードしてくることをお勧めします。
-中でもmojihameコマンドとの相性は抜群です。https://github.com/ShellShoccar-jpn/installer
-
-### TIPS 例えば、クエリAPIとmojihameコマンド
-テンプレのようい、template
+## Manual Installation
+### 1. Clone repository
 ```
-GET /
-QUERY
-%1 %2
-QUERY
-Version 2016-11-15
-Host: ec2.ap-northeast-1.amazonaws.com
-Content-Type: application/x-www-form-urlencoded
+git clone https://github.com/BRAVEMAN-L-BRID/axs.git ~/axs
+```
+### 2. Add a path to PATH
+make sure axs/bin be listed under $PATH.
+```
+export PATH="$PATH:/home/user/axs/bin"
 ```
 
-設定の用意、config.txt
+## Configuration
+Write access key ID and secret access key in ~ /.aws/credentials file as follows. Please be careful about permissions. or you can use IAM role in EC2 or Lambda.
 ```
-Action Hogehoge
-AAAAA dededed
-hogemoge ahahaha
-```
-
-いざアクセス
-```
-cat config.txt | mojihame -lQUERY template - | axs -q | parsrx.sh | 加工
+[default]
+aws_access_key_id = hogehoge
+aws_secret_access_key = mogemoge
 ```
 
+## USAGE
+Usage is easy. It just reads the setting file (the way of writing is RESTful). It acts as a filter. Input is stdin and output is stdout.  
+For example, using the cat command
+```
+$cat RESTful_API_file | axs
+```
+Or just put the REST API file in the argument
+```
+$axs RESTful_API_file
+```
+### RESTful_API_file
+The format of RESTFul_API_FILE is almost clear in HTTP request format. The only difference from normal is the description of the query, which is broken down into key value form.
+```
+METHOD URI    
+Key Value
+key Value
+Key Value    
+Host: ec2.ap-northeast-1.amazonaws.com 
+Content-Type: application/hoghoge 
+X-Amz-moge: hogehogehoge 
 
-素晴らしいparsrsのコマンドを用いれば、無駄に多くのコマンドを用いずにレスポンスの解析もできます
+body (JSON, XML. Binary)
+```
+### RESPONSE
+RESPONSE contains the response header and body. Because the AWS REST API uses header information frequently. Of course, you can erase the header information with the -q option if you get in the way
+```
+HTTP/1.1 200 OK
+x-amz-id-2: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+x-amz-request-id: XXXXXXXXXXXXXXXX
+Date: Sat, 10 Jun 2017 XX:XX:XXX GMT
+x-amz-bucket-region: us-east-1
+Content-Type: application/xml
+Transfer-Encoding: chunked
+Server: AmazonS3
 
-ちなみに
+<xml ......>
 ```
-cat config.txt | mojihame -lQUERY template -
+# OPTIONS
 ```
-までの結果だけ抜き出すと以下のようになっています。
-```
-GET /
-Action Hogehoge
-AAAAA dededed
-hogemoge ahahaha
-Version 2016-11-15
-Host: ec2.ap-northeast-1.amazonaws.com
-Content-Type: application/x-www-form-urlencoded
+-f (image.jpg, video.mp4, music.mp3)...
+    Separate the body part into another file (eg body.txt,image.jpg) and axs!
+-q
+    With this option you can delete the response header. In this case, xml, json and binary will be returned directly, so it is convenient to process with pipe.
 ```
 
-## 感想
-意味がるのか知りません。あるかもしれないし、ないかもしれません。ただ楽しかったですとだけ付け加えておきます。
+# EXAMPLES
+In the following example, the image file is uploaded to S3
+```
+$cat<<END | axs -f moon.jpg
+PUT /image.jpg
+Host: Bucket.s3.amazonaws.com (東京リージョンの場合はbucket.s3-ap-northeast-1.amazonaws.com)
+Content-Type: image/jpeg
+END
+```
+
+With polly, get mp3 file
+```
+cat <<END axs -q > polly.mp3
+POST /v1/speech
+Host: polly.us-east-1.amazonaws.com
+Content-Type: application/json
+
+{
+  "OutputFormat": "mp3",
+  "Text": "Hello from SHELL",
+  "VoiceId": "Mizuki"
+}
+END
+```
+All other AWS services can be used. EC2, RDB, S3, Polly, Lex, Rekognition, etc...
