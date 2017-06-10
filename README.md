@@ -18,13 +18,8 @@ Just Write RESTful HTTP request in ASCII text format to access AWS. It is very i
 Free from too many options and subcommands.
 
 ## Requisites
-- openssl ver1.0.0
-- cat
-- awk
-- sed
-- printf
-- echo
-- grep
+- cat, grep, sed, awk, echo, printf
+- openssl ver1.X.X
 - curl
 - wget
 
