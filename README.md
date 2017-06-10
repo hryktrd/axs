@@ -53,7 +53,7 @@ Or just put the REST API file in the argument
 $axs RESTful_API_file
 ```
 ### RESTful_API_file
-The format of RESTFul_API_FILE is almost clear in HTTP request format. The only difference from normal is the description of the query, which is broken down into key value form.
+The format of RESTful_API_FILE is almost clear in HTTP request format. The only difference from normal is the description of the query, which is broken down into key value form.
 ```
 METHOD URI    
 Key Value
@@ -84,7 +84,8 @@ Server: AmazonS3
 -f (image.jpg, video.mp4, music.mp3)...
     Separate the body part into another file (eg body.txt,image.jpg) and axs!
 -q
-    With this option you can delete the response header. In this case, xml, json and binary will be returned directly, so it is convenient to process with pipe.
+    With this option you can delete the response header. 
+    In this case, xml, json and binary will be returned directly, so it is convenient to process with pipe.
 ```
 
 # EXAMPLES
