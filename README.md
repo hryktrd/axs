@@ -13,7 +13,7 @@ There is no need to worry about version of AWS SDK,CLI anymore. Sig 4 is generat
 POSIX sh compliant:  
 Write Onece, Run Anywhere, Run for Good. (Unix, Linux & Win)
 
-True REST API:  
+True REST API:  
 Just Write RESTful HTTP request in ASCII text format to access AWS. It is very intuitive. 
 Free from too many options and subcommands.
 
