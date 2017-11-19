@@ -1,4 +1,4 @@
-# axs: Access to AWS without API tools (POSIX sh)
+# axs: Access to AWS without API tools
 A simple 'aws' command 'axs' written in POSIX sh. axs(access) to aws(amazon web services) with posixism.
 
 # SYNOPSIS
